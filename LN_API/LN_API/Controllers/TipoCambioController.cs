@@ -8,6 +8,9 @@ using System.Net.Http;
 using System.Text;
 using System.Web.Http;
 using System.Xml.Linq;
+using System.Xml;
+using LN_API.cr.fi.bccr.gee;
+using Newtonsoft.Json;
 
 namespace LN_API.Controllers
 {
@@ -16,9 +19,10 @@ namespace LN_API.Controllers
         
         const string CodigoCompra = "317";
         const string CodigoVenta = "318";
-
+        wsindicadoreseconomicos tipocambio;
         public EjecutadorWebServicesController()
-        { 
+        {
+            tipocambio = new wsindicadoreseconomicos();
         }
         private string consumirWebServiceGet(string urlRequest)
         {
@@ -31,6 +35,44 @@ namespace LN_API.Controllers
                 return obtenerData(response);
             }
             return "Respuesta no ha sido obtenida";
+        }
+        private string consumirWebService_IntegradoXML(string Tipo) {
+            
+            string[] valoresParametros = ConfigurationManager.AppSettings["WebServiceUrlParametros_Valores"].Split(',');
+            string result;
+            DateTime ahora = DateTime.Now;
+            DateTime haceMedioAnio = ahora.AddMonths(-6);
+            if (Tipo == "Compra")
+            {
+                result = tipocambio.ObtenerIndicadoresEconomicosXML("317", haceMedioAnio.ToString("d"), ahora.ToString("d"), "Pablo", "S", "ps7566966@gmail.com", "H2OP3O6PAC");
+            }
+            else
+            {
+                result = tipocambio.ObtenerIndicadoresEconomicosXML("318", haceMedioAnio.ToString("d"), ahora.ToString("d"), "Pablo", "S", "ps7566966@gmail.com", "H2OP3O6PAC");
+            }
+            XDocument doc = XDocument.Parse(result);
+            return doc.ToString();
+
+        }
+        private string consumirWebService_IntegradoJson(string Tipo)
+        {
+            string result;
+            DateTime ahora = DateTime.Now;
+            DateTime haceMedioAnio = ahora.AddMonths(-6);
+            if (Tipo == "Compra")
+            {
+                result = tipocambio.ObtenerIndicadoresEconomicosXML("317", haceMedioAnio.ToString("d"), ahora.ToString("d"), "Pablo", "S", "ps7566966@gmail.com", "H2OP3O6PAC");
+            }
+            else
+            {
+                result = tipocambio.ObtenerIndicadoresEconomicosXML("318", haceMedioAnio.ToString("d"), ahora.ToString("d"), "Pablo", "S", "ps7566966@gmail.com", "H2OP3O6PAC");
+            }
+            
+            XmlDocument doc = new XmlDocument();
+            doc.LoadXml(result);
+            
+            return JsonConvert.SerializeXmlNode(doc);
+
         }
         private string obtenerData(HttpWebResponse response)
         {
@@ -46,7 +88,7 @@ namespace LN_API.Controllers
         }
         [HttpGet]
         [Route("api/TipoCambio/ObtenerTiposDeCambio")]
-        public string ObtenerTiposDeCambio(string Nombre)
+        public string ObtenerTiposDeCambio(string NombreTipoCambio,string Formato)
         { 
             try
             {
@@ -58,13 +100,22 @@ namespace LN_API.Controllers
 
                 string urlRequest = "";
 
-                urlRequest = ConstruirURL(Nombre, urls, metodos, parametros, valoresParametros, urlRequest);
+                urlRequest = ConstruirURL(NombreTipoCambio, urls, metodos, parametros, valoresParametros, urlRequest);
 
                 if (urlRequest != null)
                 {
-                    string xmlRESPONSE = consumirWebServiceGet(urlRequest);
-                    XDocument doc = XDocument.Parse(xmlRESPONSE);
-                    return doc.ToString();
+                    string xmlRESPONSE;
+                    if (Formato == "Json")
+                    {
+                        xmlRESPONSE = consumirWebService_IntegradoJson(NombreTipoCambio);
+                    }
+                    else 
+                    {
+                        //XML
+                        xmlRESPONSE = consumirWebServiceGet(urlRequest);
+                        XDocument doc = XDocument.Parse(xmlRESPONSE);
+                    } 
+                    return xmlRESPONSE.ToString();
                 }
 
                 return "Respuesta no ha sido obtenida.";
